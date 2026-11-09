@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-INDEXER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TARGET_SCRIPT="${BASH_SOURCE[0]}"
+while [ -L "$TARGET_SCRIPT" ]; do
+  TARGET_DIR="$(cd -P "$(dirname "$TARGET_SCRIPT")" && pwd)"
+  TARGET_SCRIPT="$(readlink "$TARGET_SCRIPT")"
+  [[ $TARGET_SCRIPT != /* ]] && TARGET_SCRIPT="$TARGET_DIR/$TARGET_SCRIPT"
+done
+INDEXER_DIR="$(cd -P "$(dirname "$TARGET_SCRIPT")/.." && pwd)"
 
 # Modes:
 #   --clip       Area selection (slurp)
