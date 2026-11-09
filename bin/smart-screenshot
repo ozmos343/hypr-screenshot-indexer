@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+INDEXER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Modes:
+#   --clip       Area selection (slurp)
+#   --full       Full screen capture
+# Flags:
+#   --clipboard-only  Save directly to clipboard and exit immediately (NO indexing, NO disk save)
+#   --disk            Index and save to ~/ss/<clip|full>/ via vision worker
+
+MODE="clip"
+ACTION="clipboard-only"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --clip|--area)
+      MODE="clip"
+      shift
+      ;;
+    --full)
+      MODE="full"
+      shift
+      ;;
+    --clipboard-only|--clipboard)
+      ACTION="clipboard-only"
+      shift
+      ;;
+    --disk|--disk-only)
+      ACTION="disk"
+      shift
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+# === 1. PURE CLIPBOARD-ONLY MODE ===
+if [[ "$ACTION" == "clipboard-only" ]]; then
+  if [[ "$MODE" == "clip" ]]; then
+    GEOMETRY=$(slurp 2>/dev/null || true)
+    if [[ -z "$GEOMETRY" ]]; then
+      exit 0
+    fi
+    grim -g "$GEOMETRY" - | wl-copy
+  else
+    grim - | wl-copy
+  fi
+  exit 0
+fi
+
+# === 2. DISK & INDEXING MODE ===
+TIMESTAMP="$(date +'%s%N')"
+STAGING_TARGET="/tmp/screenshot_staging_${TIMESTAMP}.png"
+STAGING_CONTEXT=""
+
+if [[ "$MODE" == "clip" ]]; then
+  STAGING_CONTEXT="/tmp/screenshot_context_${TIMESTAMP}.png"
+  grim "$STAGING_CONTEXT" 2>/dev/null || true
+
+  GEOMETRY=$(slurp 2>/dev/null || true)
+  if [[ -z "$GEOMETRY" ]]; then
+    rm -f "$STAGING_CONTEXT" 2>/dev/null || true
+    exit 0
+  fi
+
+  grim -g "$GEOMETRY" "$STAGING_TARGET"
+else
+  grim "$STAGING_TARGET"
+fi
+
+if [[ ! -f "$STAGING_TARGET" ]]; then
+  rm -f "$STAGING_CONTEXT" 2>/dev/null || true
+  exit 1
+fi
+
+# Dispatch background indexing worker to ~/ss/<clip|full>/
+nohup bun run "$INDEXER_DIR/src/worker.ts" \
+  "$STAGING_TARGET" \
+  "$MODE" \
+  "$STAGING_CONTEXT" >/dev/null 2>&1 &
+
+exit 0

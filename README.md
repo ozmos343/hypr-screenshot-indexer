@@ -19,38 +19,60 @@ It intercepts screen captures, summarizes them via **Gemini 3.5 Flash-Lite Visio
   - `~/.local/share/screenshots/screenshots.db` for the FTS5 database.
   - `~/.local/share/screenshots/index.jsonl` for portable logs.
 
-## Setup & Configuration
+## Repository Structure
+```text
+~/.config/hypr/screenshot-indexer/
+├── bin/
+│   ├── smart-screenshot      # Capture CLI runner (clip, full, clipboard, disk)
+│   └── search-screenshots     # Interactive FTS5 search menu
+├── src/
+│   ├── config.ts              # Path resolution & environment loader
+│   ├── db.ts                  # SQLite + FTS5 database engine
+│   ├── search.ts              # Search query formatter
+│   ├── vision.ts              # Gemini Flash-Lite Vision multimodal client
+│   └── worker.ts              # Asynchronous ingestion worker
+├── package.json
+├── tsconfig.json
+├── .env.example
+└── README.md
+```
 
-1. Copy `.env.example` to `.env`:
+## Setup & Installation
+
+1. Clone into `~/.config/hypr/screenshot-indexer`:
    ```bash
+   git clone https://github.com/<your-user>/screenshot-indexer.git ~/.config/hypr/screenshot-indexer
+   cd ~/.config/hypr/screenshot-indexer
    cp .env.example .env
    ```
 2. Configure your Gemini API key in `.env`:
    ```ini
    GEMINI_API_KEY=your_gemini_api_key_here
    ```
-3. Custom directories (optional):
-   ```ini
-   # SCREENSHOTS_DIR=/home/user/ss
-   # SCREENSHOT_MODEL=gemini-3.5-flash-lite
+3. Link the binaries into your `PATH`:
+   ```bash
+   ln -sf ~/.config/hypr/screenshot-indexer/bin/smart-screenshot ~/.local/bin/smart-screenshot
+   ln -sf ~/.config/hypr/screenshot-indexer/bin/search-screenshots ~/.local/bin/search-screenshots
    ```
 
-4. Recommended Hyprland bindings (`~/.config/hypr/hyprland.conf`):
-   ```ini
-   # Area selection:
-   #   Cmd + Ctrl + /       -> Pure clipboard ONLY
-   #   Cmd + Ctrl + Alt + / -> Save to disk (~/ss/clip/) & index with Gemini Vision
-   bind = SUPER CONTROL, slash, exec, ~/.local/bin/smart-screenshot --clip --clipboard-only
-   bind = SUPER CONTROL ALT, slash, exec, ~/.local/bin/smart-screenshot --clip --disk
+4. Recommended Hyprland bindings (`~/.config/hypr/hyprland.lua`):
+   ```lua
+   local mainMod = "SUPER"
 
-   # Full screen:
-   #   Cmd + Ctrl + \       -> Pure clipboard ONLY
-   #   Cmd + Ctrl + Alt + \ -> Save to disk (~/ss/full/) & index with Gemini Vision
-   bind = SUPER CONTROL, backslash, exec, ~/.local/bin/smart-screenshot --full --clipboard-only
-   bind = SUPER CONTROL ALT, backslash, exec, ~/.local/bin/smart-screenshot --full --disk
+   -- Area selection:
+   --   Cmd + Ctrl + /       -> Pure clipboard ONLY
+   --   Cmd + Ctrl + Alt + / -> Save to disk (~/ss/clip/) & index with Gemini Vision
+   hl.bind(mainMod .. " + CONTROL + slash", hl.dsp.exec_cmd("smart-screenshot --clip --clipboard-only"))
+   hl.bind(mainMod .. " + CONTROL + ALT + slash", hl.dsp.exec_cmd("smart-screenshot --clip --disk"))
 
-   # Search semantic screenshot index:
-   bind = SUPER CONTROL SHIFT, slash, exec, ~/.local/bin/search-screenshots
+   -- Full screen:
+   --   Cmd + Ctrl + \       -> Pure clipboard ONLY
+   --   Cmd + Ctrl + Alt + \ -> Save to disk (~/ss/full/) & index with Gemini Vision
+   hl.bind(mainMod .. " + CONTROL + backslash", hl.dsp.exec_cmd("smart-screenshot --full --clipboard-only"))
+   hl.bind(mainMod .. " + CONTROL + ALT + backslash", hl.dsp.exec_cmd("smart-screenshot --full --disk"))
+
+   -- Search semantic screenshot index:
+   hl.bind(mainMod .. " + CONTROL + SHIFT + slash", hl.dsp.exec_cmd("search-screenshots"))
    ```
 
 ## License

@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+INDEXER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+COPY_MODE=false
+if [[ "$1" == "--copy" ]]; then
+  COPY_MODE=true
+  shift
+fi
+
+QUERY="$*"
+
+# Get list from search engine
+OUTPUT=$(bun run "$INDEXER_DIR/src/search.ts" "$QUERY")
+
+if [[ -z "$OUTPUT" || "$OUTPUT" == "No screenshots found" ]]; then
+  notify-send -a "Screenshots" "Search" "No screenshots found in index."
+  exit 0
+fi
+
+# Present interactive menu via wofi / walker
+SELECTED=""
+if command -v walker &>/dev/null; then
+  SELECTED=$(echo "$OUTPUT" | awk -F'\t' '{print $1}' | walker --dmenu --placeholder "Search indexed screenshots..." 2>/dev/null || true)
+elif command -v wofi &>/dev/null; then
+  SELECTED=$(echo "$OUTPUT" | awk -F'\t' '{print $1}' | wofi --dmenu -p "Search indexed screenshots..." 2>/dev/null || true)
+fi
+
+if [[ -z "$SELECTED" ]]; then
+  exit 0
+fi
+
+FILEPATH=$(echo "$OUTPUT" | grep -F "$SELECTED" | awk -F'\t' '{print $2}' | head -n 1)
+
+if [[ -n "$FILEPATH" && -f "$FILEPATH" ]]; then
+  if [[ "$COPY_MODE" == true ]]; then
+    wl-copy < "$FILEPATH"
+    notify-send -a "Screenshots" -i "$FILEPATH" "Copied to Clipboard" "$FILEPATH"
+  else
+    xdg-open "$FILEPATH" &
+  fi
+fi
