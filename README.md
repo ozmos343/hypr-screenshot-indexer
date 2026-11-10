@@ -11,7 +11,7 @@ An asynchronous, zero-latency screenshot ingestion, vision summarization, and se
 - **Sub-100ms Clipboard Availability**:
   - Raw image bytes pipe into `wl-copy` immediately upon capture.
   - The heavy vision analysis and indexing execute in an independent background worker (`nohup bun run ... &`), ensuring zero freeze or lag in your compositor.
-- **Context-Aware Vision Analysis**:
+- **Context-Aware Multimodal Vision Analysis**:
   - When capturing a clipped area (`--clip`), the daemon takes a rapid full-screen context snapshot in `/tmp/` before launching `slurp`.
   - Both the crop and the full context are provided to Gemini Flash-Lite Vision so it understands the wider application, active window, and workflow surrounding the crop.
   - The temporary context image is cleaned up immediately after analysis.
@@ -27,6 +27,8 @@ An asynchronous, zero-latency screenshot ingestion, vision summarization, and se
   - Launches an interactive searchable list via `wofi` or `walker`.
   - Default: Opens the screenshot in your default viewer (`xdg-open` / `imv`).
   - `--copy` flag: Directs the raw PNG image bytes straight back into the Wayland clipboard (`wl-copy`).
+- **Clipboard Image to Path Converter (`paste-clip-path`)**:
+  - Converts an image currently sitting in the Wayland clipboard into a temporary staged file (`/tmp/clip_<timestamp>.png`) and copies its absolute path string to the clipboard, ready to paste into shells, scripts, or LLM chat bars.
 
 ---
 
@@ -52,7 +54,8 @@ An asynchronous, zero-latency screenshot ingestion, vision summarization, and se
 ~/.config/hypr/screenshot-indexer/
 ├── bin/
 │   ├── smart-screenshot      # Dual-mode capture runner (clip/full, clipboard-only/indexed)
-│   └── search-screenshots    # Interactive FTS5 fuzzy search menu
+│   ├── search-screenshots    # Interactive FTS5 fuzzy search menu
+│   └── paste-clip-path       # Converts clipboard image to file path on demand
 ├── src/
 │   ├── config.ts             # Dynamic path and environment loader
 │   ├── db.ts                 # SQLite schema, FTS5 virtual table & indexer
@@ -93,14 +96,16 @@ GEMINI_API_KEY=AIzaSy...your_gemini_api_key_here
 
 ### 3. Link Binaries into PATH
 ```bash
+mkdir -p ~/.local/bin
 ln -sf ~/.config/hypr/screenshot-indexer/bin/smart-screenshot ~/.local/bin/smart-screenshot
 ln -sf ~/.config/hypr/screenshot-indexer/bin/search-screenshots ~/.local/bin/search-screenshots
-chmod +x ~/.local/bin/smart-screenshot ~/.local/bin/search-screenshots
+ln -sf ~/.config/hypr/screenshot-indexer/bin/paste-clip-path ~/.local/bin/paste-clip-path
+chmod +x ~/.local/bin/smart-screenshot ~/.local/bin/search-screenshots ~/.local/bin/paste-clip-path
 ```
 
 ### 4. Configure Hyprland Bindings
 
-#### For Hyprland Lua (`~/.config/hypr/hyprland.lua`):
+#### Hyprland Lua (`~/.config/hypr/hyprland.lua`):
 ```lua
 local mainMod = "SUPER"
 
@@ -118,9 +123,13 @@ hl.bind(mainMod .. " + CONTROL + ALT + backslash", hl.dsp.exec_cmd("~/.local/bin
 
 -- Search semantic screenshot index:
 hl.bind(mainMod .. " + CONTROL + SHIFT + slash", hl.dsp.exec_cmd("~/.local/bin/search-screenshots"))
+
+-- Convert clipboard image to file path:
+hl.bind(mainMod .. " + CONTROL + V", hl.dsp.exec_cmd("~/.local/bin/paste-clip-path"))
+hl.bind(mainMod .. " + SHIFT + V", hl.dsp.exec_cmd("~/.local/bin/paste-clip-path"))
 ```
 
-#### For Legacy Hyprland Config (`~/.config/hypr/hyprland.conf`):
+#### Legacy Hyprland Config (`~/.config/hypr/hyprland.conf`):
 ```ini
 # Area selection:
 bind = SUPER CONTROL, slash, exec, ~/.local/bin/smart-screenshot --clip --clipboard-only
@@ -132,6 +141,10 @@ bind = SUPER CONTROL ALT, backslash, exec, ~/.local/bin/smart-screenshot --full 
 
 # Search semantic screenshot index:
 bind = SUPER CONTROL SHIFT, slash, exec, ~/.local/bin/search-screenshots
+
+# Convert clipboard image to file path:
+bind = SUPER CONTROL, V, exec, ~/.local/bin/paste-clip-path
+bind = SUPER SHIFT, V, exec, ~/.local/bin/paste-clip-path
 ```
 
 Reload Hyprland:
@@ -141,15 +154,16 @@ hyprctl reload
 
 ---
 
-## How to Operate
+## Shortcut Reference
 
-| Shortcut | Description | Outcome |
+| Shortcut | Action | Destination / Behavior |
 | :--- | :--- | :--- |
 | `Cmd + Ctrl + /` | **Instant Area Crop** | Selected area piped directly to clipboard (`wl-copy`). No disk write, zero overhead. |
 | `Cmd + Ctrl + Alt + /` | **Smart Area Capture** | Full context + area crop analyzed by Gemini Vision, saved to `~/ss/clip/<slug>.png`, and indexed in SQLite. |
 | `Cmd + Ctrl + \` | **Instant Fullscreen** | Full screen copied directly to clipboard (`wl-copy`). |
 | `Cmd + Ctrl + Alt + \` | **Smart Fullscreen** | Full screen saved to `~/ss/full/<slug>.png` and indexed in SQLite. |
-| `Cmd + Ctrl + Shift + /` | **Search Screenshot Index** | Opens interactive FTS5 search menu. Selecting an item opens it in `xdg-open`. |
+| `Cmd + Ctrl + Shift + /` | **Search Screenshot Index** | Opens interactive FTS5 search menu. Selecting an item opens it in viewer or copies via `--copy`. |
+| `Cmd + Ctrl + V` / `Cmd + Shift + V` | **Image to Path** | Saves clipboard image to `/tmp/clip_<timestamp>.png` and replaces clipboard with the file path string. |
 
 ---
 

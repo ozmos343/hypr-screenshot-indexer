@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+# Check if clipboard has image
+if wl-paste -l 2>/dev/null | grep -q "image/"; then
+  TMP_FILE="/tmp/clip_$(date +'%s%N').png"
+  wl-paste > "$TMP_FILE"
+  # Replace clipboard content with the file path text
+  printf "%s " "$TMP_FILE" | wl-copy
+  notify-send -a "Clipboard" -i "$TMP_FILE" "Image Staged" "Pasted path to clipboard:\n$TMP_FILE"
+fi
