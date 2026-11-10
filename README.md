@@ -73,19 +73,22 @@ An asynchronous, zero-latency screenshot ingestion, vision summarization, and se
 
 ## Setup & Installation
 
-### 1. Clone the Repository
+### 1. One-Step Automated Install (Recommended)
+You can clone the repository anywhere and run the installer:
 ```bash
-git clone https://github.com/<your-user>/screenshot-indexer.git ~/.config/hypr/screenshot-indexer
-cd ~/.config/hypr/screenshot-indexer
+git clone https://github.com/<your-user>/screenshot-indexer.git
+cd screenshot-indexer
+./install.sh
 ```
+The installer automatically:
+- Checks system dependencies (`bun`, `grim`, `slurp`, `wl-copy`, `sqlite3`).
+- Links the repository into `~/.config/hypr/screenshot-indexer`.
+- Initializes destination directories (`~/ss/clip` and `~/ss/full`).
+- Generates a secure `~/.config/hypr/screenshot-indexer/.env` (mode `600`) if not already present.
+- Links `smart-screenshot`, `search-screenshots`, and `paste-clip-path` into `~/.local/bin/`.
 
 ### 2. Configure Your API Key
-Copy `.env.example` to `.env` and set your Google Gemini API key:
-```bash
-cp .env.example .env
-chmod 600 .env
-```
-Edit `.env`:
+Edit `~/.config/hypr/screenshot-indexer/.env`:
 ```ini
 GEMINI_API_KEY=AIzaSy...your_gemini_api_key_here
 
@@ -94,16 +97,7 @@ GEMINI_API_KEY=AIzaSy...your_gemini_api_key_here
 # SCREENSHOT_MODEL=gemini-3.5-flash-lite
 ```
 
-### 3. Link Binaries into PATH
-```bash
-mkdir -p ~/.local/bin
-ln -sf ~/.config/hypr/screenshot-indexer/bin/smart-screenshot ~/.local/bin/smart-screenshot
-ln -sf ~/.config/hypr/screenshot-indexer/bin/search-screenshots ~/.local/bin/search-screenshots
-ln -sf ~/.config/hypr/screenshot-indexer/bin/paste-clip-path ~/.local/bin/paste-clip-path
-chmod +x ~/.local/bin/smart-screenshot ~/.local/bin/search-screenshots ~/.local/bin/paste-clip-path
-```
-
-### 4. Configure Hyprland Bindings
+### 3. Configure Hyprland Bindings
 
 #### Hyprland Lua (`~/.config/hypr/hyprland.lua`):
 ```lua
